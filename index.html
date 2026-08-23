@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>学习时长累计提醒工具</title>
+<meta name="description" content="学习时长累计提醒工具：开始监测学习时长，到点强制提醒，支持单次与累计循环模式。">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2563eb">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="时长提醒">
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns=%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox=%270%200%20192%20192%27%3E%3Crect%20width=%27192%27%20height=%27192%27%20rx=%2740%27%20fill=%27%232563eb%27%2F%3E%3Ccircle%20cx=%2796%27%20cy=%2796%27%20r=%2754%27%20fill=%27none%27%20stroke=%27%23ffffff%27%20stroke-width=%2714%27%2F%3E%3Cpath%20d=%27M96%2068v32l22%2014%27%20fill=%27none%27%20stroke=%27%23ffffff%27%20stroke-width=%2712%27%20stroke-linecap=%27round%27%2F%3E%3C%2Fsvg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg%20xmlns=%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox=%270%200%20192%20192%27%3E%3Crect%20width=%27192%27%20height=%27192%27%20rx=%2740%27%20fill=%27%232563eb%27%2F%3E%3Ccircle%20cx=%2796%27%20cy=%2796%27%20r=%2754%27%20fill=%27none%27%20stroke=%27%23ffffff%27%20stroke-width=%2714%27%2F%3E%3Cpath%20d=%27M96%2068v32l22%2014%27%20fill=%27none%27%20stroke=%27%23ffffff%27%20stroke-width=%2712%27%20stroke-linecap=%27round%27%2F%3E%3C%2Fsvg%3E">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: linear-gradient(160deg, #eef2ff 0%, #f8fafc 100%);
+  color: #1e293b;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  padding: 32px 16px;
+}
+.app { width: 100%; max-width: 560px; }
+header { text-align: center; margin-bottom: 20px; }
+header h1 { font-size: 22px; color: #1e3a8a; }
+header .subtitle { margin-top: 4px; font-size: 13px; color: #64748b; }
+.card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 8px 24px rgba(30, 64, 175, .08);
+  margin-bottom: 16px;
+}
+.timer-area { text-align: center; }
+.status {
+  display: inline-block;
+  font-size: 13px;
+  padding: 4px 14px;
+  border-radius: 999px;
+}
+.status.idle { background: #e2e8f0; color: #475569; }
+.status.running { background: #dcfce7; color: #166534; }
+.status.stopped { background: #fee2e2; color: #991b1b; }
+.timer {
+  display: block;
+  margin-top: 12px;
+  font-size: 48px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+.controls { display: flex; gap: 10px; margin-top: 22px; }
+.controls button {
+  flex: 1;
+  padding: 13px 8px;
+  font-size: 15px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  color: #fff;
+  transition: opacity .15s, transform .05s;
+}
+.controls button:active { transform: scale(.97); }
+.controls button:disabled { opacity: .45; cursor: not-allowed; }
+#startBtn { background: #2563eb; }
+#stopBtn { background: #d97706; }
+#clearBtn { background: #dc2626; }
+.config h2 { font-size: 15px; color: #334155; margin-bottom: 6px; }
+.config-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 11px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+.config-row:last-of-type { border-bottom: none; }
+.config-row label { font-size: 15px; color: #334155; }
+.config-row .hint { font-size: 12px; color: #94a3b8; margin-left: 6px; }
+.config-row input[type="number"] {
+  width: 96px;
+  padding: 8px 10px;
+  font-size: 16px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  text-align: center;
+}
+.config-row input[type="number"]:focus { outline: 2px solid #2563eb; border-color: transparent; }
+.config-row input[type="checkbox"] {
+  width: 22px;
+  height: 22px;
+  accent-color: #2563eb;
+  cursor: pointer;
+}
+.config-summary {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.7;
+}
+footer { text-align: center; font-size: 12px; color: #94a3b8; }
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, .66);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 24px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s;
+}
+.overlay.show { opacity: 1; pointer-events: auto; }
+.dialog {
+  width: 100%;
+  max-width: 360px;
+  background: #fff;
+  border-radius: 16px;
+  padding: 28px 24px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .3);
+}
+.dialog h2 { color: #1e3a8a; margin-bottom: 14px; font-size: 19px; }
+.alert-msg { font-size: 17px; font-weight: 600; color: #0f172a; margin-bottom: 10px; line-height: 1.6; }
+.alert-total { font-size: 14px; color: #475569; margin-bottom: 6px; }
+.alert-countdown { font-size: 12px; color: #94a3b8; margin-bottom: 20px; }
+.dialog button {
+  width: 100%;
+  padding: 13px;
+  font-size: 16px;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+}
+@media (max-width: 600px) {
+  body { padding: 20px 12px; }
+  .card { padding: 20px 16px; border-radius: 14px; }
+  .controls { flex-direction: column; }
+  .controls button { padding: 16px; font-size: 18px; border-radius: 12px; min-height: 52px; }
+  .timer { font-size: 40px; }
+  .config-row label { font-size: 16px; }
+  .dialog button { min-height: 52px; font-size: 18px; }
+  .test-btn { min-height: 52px; font-size: 18px; }
+}
+.notif-state { font-size: 14px; color: #475569; font-weight: 600; }
+.notif-state.ok { color: #166534; }
+.notif-state.bad { color: #b91c1c; }
+.test-btn {
+  width: 100%;
+  margin-top: 14px;
+  padding: 13px;
+  font-size: 15px;
+  background: #0ea5e9;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+}
+.test-btn:active { opacity: .85; }
+.notif-tip {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: #fef3c7;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #92400e;
+  line-height: 1.8;
+}
+.warn-banner {
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  background: #dc2626;
+  color: #fff;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.7;
+}
+.warn-banner a { color: #fef9c3; }
+.diag-line {
+  margin-top: 10px;
+  font-size: 12px;
+  color: #94a3b8;
+  text-align: center;
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="warn-banner" id="warnBanner" style="display:none"></div>
+  <header>
+    <h1>学习时长累计提醒</h1>
+    <p class="subtitle">连续学习监测 · 到点强制提醒</p>
+  </header>
+
+  <section class="card timer-area">
+    <span class="status idle" id="statusText">未开始</span>
+    <span class="timer" id="timer">00:00:00</span>
+  </section>
+
+  <section class="card">
+    <div class="controls">
+      <button id="startBtn">开始监测</button>
+      <button id="stopBtn">停止监测</button>
+      <button id="clearBtn">手动清零全部计时</button>
+    </div>
+  </section>
+
+  <section class="card config">
+    <h2>设置</h2>
+    <div class="config-row">
+      <label>提醒阈值<span class="hint">(0–180 分钟)</span></label>
+      <input type="number" id="thresholdInput" min="0" max="180" step="1" inputmode="numeric" value="60">
+    </div>
+    <div class="config-row">
+      <label>总开关<span class="hint">关闭仅展示计时，不提醒</span></label>
+      <input type="checkbox" id="masterToggle">
+    </div>
+    <div class="config-row">
+      <label>循环开关<span class="hint">开启累计循环，不清零持续叠加</span></label>
+      <input type="checkbox" id="loopToggle">
+    </div>
+    <div class="config-row">
+      <label>系统通知</label>
+      <span class="notif-state" id="notifState">检查中…</span>
+    </div>
+    <button class="test-btn" id="testBtn">测试提醒（立即响铃 + 通知）</button>
+    <p class="notif-tip" id="notifTip" style="display:none"></p>
+    <div class="config-summary" id="configSummary"></div>
+    <div class="diag-line" id="diagLine"></div>
+  </section>
+
+  <footer>设置保存在本机浏览器 · 到点弹窗 / 系统通知 + 提示音提醒</footer>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="dialog">
+    <h2>学习时长提醒</h2>
+    <p class="alert-msg" id="alertMsg"></p>
+    <p class="alert-total">总连续时长：<span id="alertTotal"></span></p>
+    <p class="alert-countdown" id="alertCountdown"></p>
+    <button id="confirmBtn">确认</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var CONFIG_KEY = 'studyTimeAlertConfig';
+  var AUTO_CLOSE_SECONDS = 10;
+  var MIN_THRESHOLD = 0;
+  var MAX_THRESHOLD = 180;
+
+  var config = { masterOn: true, threshold: 60, loopOn: false };
+
+  var monitoring = false;
+  var accumMs = 0;
+  var lastElapsedRef = null;
+  var alertedCycles = 0;
+  var status = '未开始';
+
+  var timerEl = document.getElementById('timer');
+  var statusEl = document.getElementById('statusText');
+  var startBtn = document.getElementById('startBtn');
+  var stopBtn = document.getElementById('stopBtn');
+  var clearBtn = document.getElementById('clearBtn');
+  var thInput = document.getElementById('thresholdInput');
+  var masterToggle = document.getElementById('masterToggle');
+  var loopToggle = document.getElementById('loopToggle');
+  var configSummary = document.getElementById('configSummary');
+  var overlay = document.getElementById('overlay');
+  var alertMsg = document.getElementById('alertMsg');
+  var alertTotal = document.getElementById('alertTotal');
+  var alertCountdown = document.getElementById('alertCountdown');
+  var confirmBtn = document.getElementById('confirmBtn');
+  var testBtn = document.getElementById('testBtn');
+  var alertTimer = null;
+
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+  function formatHMS(ms) {
+    var s = Math.floor(ms / 1000);
+    return pad(Math.floor(s / 3600)) + ':' + pad(Math.floor((s % 3600) / 60)) + ':' + pad(s % 60);
+  }
+
+  function formatFull(ms) {
+    var s = Math.floor(ms / 1000);
+    var h = Math.floor(s / 3600);
+    var m = Math.floor((s % 3600) / 60);
+    return h + ' 小时 ' + m + ' 分钟';
+  }
+
+  function loadConfig() {
+    try {
+      var saved = JSON.parse(localStorage.getItem(CONFIG_KEY));
+      if (saved && typeof saved === 'object') {
+        if (typeof saved.masterOn === 'boolean') config.masterOn = saved.masterOn;
+        if (typeof saved.loopOn === 'boolean') config.loopOn = saved.loopOn;
+        if (Number.isInteger(saved.threshold)) config.threshold = saved.threshold;
+      }
+    } catch (e) {}
+    if (!Number.isInteger(config.threshold) || config.threshold < MIN_THRESHOLD || config.threshold > MAX_THRESHOLD) {
+      config.threshold = 60;
+    }
+  }
+
+  function saveConfig() {
+    try { localStorage.setItem(CONFIG_KEY, JSON.stringify(config)); } catch (e) {}
+  }
+
+  function thresholdMs() { return Math.max(1, config.threshold) * 60000; }
+
+  function updateStatus() {
+    statusEl.textContent = status;
+    statusEl.className = 'status ' + (monitoring ? 'running' : (status === '已停止' ? 'stopped' : 'idle'));
+  }
+
+  function updateDisplay() {
+    timerEl.textContent = formatHMS(accumMs);
+  }
+
+  function updateConfigSummary() {
+    var thTxt = config.threshold === 0 ? '0（按 1 分钟）' : String(config.threshold);
+    configSummary.textContent = '阈值 ' + thTxt + ' 分钟 · 总开关 ' + (config.masterOn ? '开' : '关') +
+      ' · 循环 ' + (config.loopOn ? '累计循环' : '单次模式');
+  }
+
+  function accumulate(now) {
+    if (!monitoring) return;
+    if (lastElapsedRef == null) { lastElapsedRef = now; return; }
+    var dt = now - lastElapsedRef;
+    lastElapsedRef = now;
+    if (dt <= 0) return;
+    accumMs += dt;
+    updateDisplay();
+  }
+
+  function checkThreshold() {
+    if (!config.masterOn) return;
+    if (!monitoring) return;
+    var th = thresholdMs();
+    if (th <= 0) return;
+    var cycles = Math.floor(accumMs / th);
+    if (cycles <= alertedCycles) return;
+    if (!config.loopOn && alertedCycles > 0) return;
+    alertedCycles = cycles;
+    fireAlert();
+  }
+
+  function handleTick(now) {
+    updateDiag();
+    if (!monitoring) return;
+    accumulate(now);
+    if (monitoring) checkThreshold();
+  }
+
+  function fireAlert() {
+    var totalH = accumMs / 3600000;
+    var hoursText;
+    if (Math.abs(totalH - Math.round(totalH)) < 0.0001) hoursText = String(Math.round(totalH));
+    else hoursText = totalH.toFixed(1);
+    var msg = '您已经连续 ' + hoursText + ' 个小时没有学习了';
+    alertMsg.textContent = msg;
+    alertTotal.textContent = formatFull(accumMs);
+    overlay.classList.add('show');
+    var remain = AUTO_CLOSE_SECONDS;
+    alertCountdown.textContent = remain + ' 秒后自动关闭';
+    clearInterval(alertTimer);
+    alertTimer = setInterval(function () {
+      remain--;
+      if (remain <= 0) closeAlert();
+      else alertCountdown.textContent = remain + ' 秒后自动关闭';
+    }, 1000);
+    vibrate();
+    playAlertSound();
+    notifyAlert(msg);
+  }
+
+  function closeAlert() {
+    clearInterval(alertTimer);
+    alertTimer = null;
+    overlay.classList.remove('show');
+    if (!config.loopOn) {
+      monitoring = false;
+      accumMs = 0;
+      lastElapsedRef = null;
+      alertedCycles = 0;
+      status = '已停止';
+      stopKeepAlive();
+      stopKeepAliveWatchdog();
+      updateStatus();
+    }
+    updateDisplay();
+  }
+
+  function closeModalNow() {
+    clearInterval(alertTimer);
+    alertTimer = null;
+    overlay.classList.remove('show');
+  }
+
+  var keepAlive = null;
+  var keepAliveUrl = null;
+  var kaWatchdog = null;
+
+  function makeKeepAliveWav() {
+    var sr = 8000;
+    var n = Math.floor(sr * 0.25);
+    var buf = new ArrayBuffer(44 + n);
+    var d = new DataView(buf);
+    function putStr(s, o) { for (var i = 0; i < s.length; i++) d.setUint8(o + i, s.charCodeAt(i)); }
+    putStr('RIFF', 0); d.setUint32(4, 36 + n, true); putStr('WAVE', 8);
+    putStr('fmt ', 12); d.setUint32(16, 16, true); d.setUint16(20, 1, true); d.setUint16(22, 1, true);
+    d.setUint32(24, sr, true); d.setUint32(28, sr, true); d.setUint16(32, 1, true); d.setUint16(34, 8, true);
+    putStr('data', 36); d.setUint32(40, n, true);
+    for (var i = 0; i < n; i++) {
+      var v = Math.sin((i / sr) * 2 * Math.PI * 220) * 50;
+      d.setUint8(44 + i, 128 + Math.round(v));
+    }
+    return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+  }
+
+  function startKeepAlive() {
+    if (keepAlive) return;
+    try {
+      if (!keepAliveUrl) keepAliveUrl = makeKeepAliveWav();
+      keepAlive = new Audio();
+      keepAlive.src = keepAliveUrl;
+      keepAlive.loop = true;
+      keepAlive.volume = 0.02;
+      var p = keepAlive.play();
+      if (p && typeof p.catch === 'function') {
+        p.catch(function () { keepAlive = null; });
+      }
+    } catch (e) {
+      keepAlive = null;
+    }
+  }
+
+  function stopKeepAlive() {
+    if (keepAlive) {
+      try { keepAlive.pause(); } catch (e) {}
+      keepAlive = null;
+    }
+  }
+
+  function startKeepAliveWatchdog() {
+    stopKeepAliveWatchdog();
+    kaWatchdog = setInterval(function () {
+      if (!monitoring) return;
+      try {
+        if (!keepAlive || keepAlive.paused || keepAlive.ended) {
+          try { if (keepAlive) keepAlive.pause(); } catch (e) {}
+          keepAlive = null;
+          startKeepAlive();
+        }
+      } catch (e) {}
+    }, 5000);
+  }
+
+  function stopKeepAliveWatchdog() {
+    if (kaWatchdog) { clearInterval(kaWatchdog); kaWatchdog = null; }
+  }
+
+  var diagTicks = 0;
+  var diagStart = Date.now();
+  var diagRate = '-';
+
+  function updateDiag() {
+    var el = document.getElementById('diagLine');
+    if (!el) return;
+    diagTicks++;
+    var now = Date.now();
+    if (now - diagStart >= 5000) {
+      diagRate = Math.round(diagTicks * 60000 / (now - diagStart));
+      diagTicks = 0;
+      diagStart = now;
+      var ka = (!monitoring) ? '未监测' : (keepAlive && !keepAlive.paused ? '播放中' : '停止');
+      el.textContent = '后台保活：' + ka + ' · 心跳：' + diagRate + ' 次/分';
+    }
+  }
+
+  function vibrate() {
+    if ('vibrate' in navigator) {
+      try { navigator.vibrate([300, 150, 300]); } catch (e) {}
+    }
+  }
+
+  var alertAudio = null;
+
+  function getAlertAudio() {
+    if (alertAudio) return alertAudio;
+    try {
+      alertAudio = new Audio('naozhong.mp3');
+      alertAudio.preload = 'auto';
+      alertAudio.loop = false;
+      return alertAudio;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function primeAlertAudio() {
+    var a = getAlertAudio();
+    if (!a) return;
+    try {
+      var vol = a.volume;
+      a.volume = 0;
+      a.play().then(function () {
+        a.pause();
+        a.currentTime = 0;
+        a.volume = vol;
+      }).catch(function () { a.volume = vol; });
+    } catch (e) {}
+  }
+
+  function playAlertSound() {
+    var a = getAlertAudio();
+    if (!a) return;
+    try {
+      a.pause();
+      a.currentTime = 0;
+      a.volume = 1;
+      var p = a.play();
+      if (p && typeof p.catch === 'function') {
+        p.catch(function () {});
+      }
+    } catch (e) {}
+  }
+
+  function notifyAlert(body) {
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'granted') {
+      try {
+        var iconLink = document.querySelector('link[rel="icon"]');
+        var iconUrl = iconLink ? iconLink.href : undefined;
+        var n = new Notification('学习时长提醒', {
+          body: body,
+          tag: 'study-time-alert',
+          icon: iconUrl
+        });
+        n.onclick = function () {
+          try { window.focus(); this.close(); } catch (e) {}
+        };
+      } catch (e) {}
+    }
+  }
+
+  function requestNotificationPermission() {
+    if (!('Notification' in window)) return;
+    if (Notification.permission === 'default') {
+      try {
+        Notification.requestPermission().then(function (perm) {
+          updateNotifState();
+          if (perm === 'granted' && monitoring) checkThreshold();
+        }).catch(function () { updateNotifState(); });
+      } catch (e) { updateNotifState(); }
+    }
+  }
+
+  function updateNotifState() {
+    var el = document.getElementById('notifState');
+    var tip = document.getElementById('notifTip');
+    var banner = document.getElementById('warnBanner');
+    if (!el) return;
+    var badContext = !('Notification' in window);
+    if (badContext) {
+      var isFile = location.protocol === 'file:';
+      var url = 'https://fox66-1.github.io/study-time-alert/';
+      var txt = isFile
+        ? '现在是用“双击文件”方式打开的，浏览器禁止这种方式的系统通知和振动。请复制地址栏旁这个网址去浏览器打开： ' + url
+        : '当前访问方式不支持系统通知。请用这个 https 网址打开： ' + url;
+      el.textContent = '当前打开方式不支持通知';
+      el.className = 'notif-state bad';
+      if (tip) { tip.style.display = 'block'; tip.textContent = txt; }
+      if (banner) {
+        banner.innerHTML = isFile
+          ? '⚠ 别用“双击文件”打开！请复制这个网址到浏览器打开： <a href="' + url + '">' + url + '</a>'
+          : '⚠ 当前方式不支持系统通知，请用 https 网址打开： <a href="' + url + '">' + url + '</a>';
+        banner.style.display = 'block';
+      }
+      return;
+    }
+    if (banner) banner.style.display = 'none';
+    var p = Notification.permission;
+    if (p === 'granted') {
+      el.textContent = '已开启 ✓';
+      el.className = 'notif-state ok';
+      if (tip) tip.style.display = 'none';
+    } else if (p === 'denied') {
+      el.textContent = '被拒绝（后台无法提醒）';
+      el.className = 'notif-state bad';
+      if (tip) {
+        tip.style.display = 'block';
+        tip.textContent = '通知被拒绝了，切后台就收不到提醒。请在手机浏览器设置里允许本网站通知；OPPO 手机还要到：手机设置 → 应用管理 → 你的浏览器 → 通知 → 允许显示通知。改完回来自动生效。';
+      }
+    } else {
+      el.textContent = '未开启（点【开始监测】会询问）';
+      el.className = 'notif-state';
+      if (tip) tip.style.display = 'none';
+    }
+  }
+
+  function testAlert() {
+    primeAlertAudio();
+    requestNotificationPermission();
+    var msg = '测试提醒：能听到闹钟、看到通知，就说明设置成功了';
+    alertMsg.textContent = msg;
+    alertTotal.textContent = formatFull(accumMs);
+    overlay.classList.add('show');
+    var remain = AUTO_CLOSE_SECONDS;
+    alertCountdown.textContent = remain + ' 秒后自动关闭';
+    clearInterval(alertTimer);
+    alertTimer = setInterval(function () {
+      remain--;
+      if (remain <= 0) closeModalNow();
+      else alertCountdown.textContent = remain + ' 秒后自动关闭';
+    }, 1000);
+    vibrate();
+    playAlertSound();
+    notifyAlert(msg);
+    setTimeout(updateNotifState, 800);
+  }
+
+  function onVisibilityChange() {
+    if (monitoring) checkThreshold();
+  }
+
+  function startMonitoring() {
+    if (monitoring) return;
+    monitoring = true;
+    status = '监测中';
+    lastElapsedRef = Date.now();
+    startKeepAlive();
+    startKeepAliveWatchdog();
+    primeAlertAudio();
+    requestNotificationPermission();
+    updateStatus();
+    updateDisplay();
+  }
+
+  function stopMonitoring() {
+    if (!monitoring) return;
+    accumulate(Date.now());
+    monitoring = false;
+    lastElapsedRef = null;
+    status = '已停止';
+    var th = thresholdMs();
+    if (th > 0) alertedCycles = Math.floor(accumMs / th);
+    stopKeepAlive();
+    stopKeepAliveWatchdog();
+    closeModalNow();
+    updateStatus();
+    updateDisplay();
+  }
+
+  function clearAll() {
+    monitoring = false;
+    accumMs = 0;
+    lastElapsedRef = null;
+    alertedCycles = 0;
+    status = '已停止';
+    stopKeepAlive();
+    stopKeepAliveWatchdog();
+    closeModalNow();
+    updateStatus();
+    updateDisplay();
+  }
+
+  function startWorker() {
+    var worker = null;
+    try {
+      var code = 'var i=setInterval(function(){postMessage(Date.now())},1000);';
+      var blob = new Blob([code], { type: 'text/javascript' });
+      worker = new Worker(URL.createObjectURL(blob));
+      worker.onmessage = function (e) { handleTick(e.data); };
+    } catch (e) {
+      worker = null;
+    }
+    if (!worker) {
+      setInterval(function () { handleTick(Date.now()); }, 1000);
+    }
+  }
+
+  startBtn.addEventListener('click', startMonitoring);
+  stopBtn.addEventListener('click', stopMonitoring);
+  clearBtn.addEventListener('click', clearAll);
+  confirmBtn.addEventListener('click', closeAlert);
+  testBtn.addEventListener('click', testAlert);
+
+  masterToggle.addEventListener('change', function () {
+    config.masterOn = masterToggle.checked;
+    saveConfig();
+    updateConfigSummary();
+  });
+
+  loopToggle.addEventListener('change', function () {
+    config.loopOn = loopToggle.checked;
+    saveConfig();
+    updateConfigSummary();
+  });
+
+  function parseThreshold(v) {
+    var val = parseInt(v, 10);
+    if (Number.isInteger(val) && val >= MIN_THRESHOLD && val <= MAX_THRESHOLD) return val;
+    return null;
+  }
+
+  function finalizeThreshold() {
+    var t = thInput.value.trim();
+    var v;
+    if (t === '') {
+      v = 0;
+    } else {
+      v = parseInt(t, 10);
+      if (!Number.isInteger(v) || v < MIN_THRESHOLD || v > MAX_THRESHOLD) v = config.threshold;
+    }
+    config.threshold = v;
+    thInput.value = String(v);
+    saveConfig();
+    updateConfigSummary();
+  }
+
+  thInput.addEventListener('input', function () {
+    var val = parseThreshold(this.value);
+    if (val != null) {
+      config.threshold = val;
+      saveConfig();
+      updateConfigSummary();
+    }
+  });
+
+  thInput.addEventListener('change', finalizeThreshold);
+
+  thInput.addEventListener('blur', finalizeThreshold);
+
+  document.addEventListener('visibilitychange', onVisibilityChange);
+
+  function unlockAudioOnce() {
+    primeAlertAudio();
+    document.removeEventListener('pointerdown', unlockAudioOnce);
+    document.removeEventListener('keydown', unlockAudioOnce);
+  }
+  document.addEventListener('pointerdown', unlockAudioOnce);
+  document.addEventListener('keydown', unlockAudioOnce);
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('./service-worker.js').catch(function () {});
+    });
+  }
+
+  loadConfig();
+  masterToggle.checked = config.masterOn;
+  loopToggle.checked = config.loopOn;
+  thInput.value = String(config.threshold);
+  updateStatus();
+  updateDisplay();
+  updateConfigSummary();
+  updateNotifState();
+  startWorker();
+})();
+</script>
+</body>
+</html>
